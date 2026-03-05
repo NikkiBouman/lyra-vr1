@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Lyra Titelrace 2025/26</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:#f5f5f5;color:#1a1a1a;font-family:'DM Mono','Courier New',monospace;overscroll-behavior:none;}
+  .mrow:active{background:rgba(0,0,0,0.04)!important;}
+  .obtn{transition:all 0.1s;cursor:pointer;-webkit-appearance:none;}
+  .pbtn{transition:all 0.12s;cursor:pointer;-webkit-appearance:none;}
+  .pbtn:active{opacity:0.8;transform:scale(0.97);}
+  .obtn:active{transform:scale(1.1);}
+  .score-input{width:32px;height:30px;text-align:center;border:1.5px solid #e5e7eb;border-radius:6px;font-size:14px;font-weight:700;font-family:'DM Mono',monospace;background:#fff;color:#1a1a1a;-webkit-appearance:none;appearance:none;}
+  .score-input:focus{outline:none;border-color:#E2001A;}
+  .score-input.filled{background:#fff7f7;border-color:#fca5a5;}
+  .toggle-track{transition:background 0.2s;cursor:pointer;}
+  ::-webkit-scrollbar{display:none;}
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
+  input[type=number]{-moz-appearance:textfield;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useCallback } = React;
+
+const L="Lyra",K="KMD",Q="Quick",M="Maasdijk";
+const TEAMS=[L,K,Q,M];
+const FULL={[L]:"vv Lyra VR1",[K]:"KMD VR1",[Q]:"Quick VR1",[M]:"Maasdijk VR1"};
+const SHORT={[L]:"Lyra",[K]:"KMD",[Q]:"Quick",[M]:"Maasdijk"};
+const INIT_PTS={[L]:32,[K]:28,[Q]:28,[M]:27};
+const INIT_GD={[L]:37,[K]:37,[Q]:32,[M]:9};
+const COL={[L]:"#E2001A",[K]:"#1d6cc8",[Q]:"#d97706",[M]:"#7c3aed"};
+const COL_LIGHT={[L]:"#fdecea",[K]:"#dbeafe",[Q]:"#fef3c7",[M]:"#ede9fe"};
+
+const MATCHES=[
+  {id:1, date:"7 mrt",  home:"SEP",         away:"vv Lyra",    ht:null,at:L},
+  {id:2, date:"7 mrt",  home:"Gravenzande", away:"KMD",        ht:null,at:K},
+  {id:3, date:"7 mrt",  home:"Die Haghe",   away:"Maasdijk",   ht:null,at:M},
+  {id:4, date:"14 mrt", home:"vv Lyra",     away:"Ariston'80", ht:L,   at:null},
+  {id:5, date:"14 mrt", home:"KMD",         away:"Wilhelmus",  ht:K,   at:null},
+  {id:6, date:"14 mrt", home:"Maasdijk",    away:"Concordia",  ht:M,   at:null},
+  {id:7, date:"21 mrt", home:"Quick",       away:"vv Lyra",    ht:Q,   at:L},
+  {id:8, date:"21 mrt", home:"SEP",         away:"KMD",        ht:null,at:K},
+  {id:9, date:"21 mrt", home:"Wilhelmus",   away:"Maasdijk",   ht:null,at:M},
+  {id:10,date:"28 mrt", home:"vv Lyra",     away:"Die Haghe",  ht:L,   at:null},
+  {id:11,date:"28 mrt", home:"KMD",         away:"Maasdijk",   ht:K,   at:M},
+  {id:12,date:"28 mrt", home:"Gravenzande", away:"Quick",      ht:null,at:Q},
+  {id:13,date:"31 mrt", home:"Quick",       away:"FC Skillz",  ht:Q,   at:null},
+  {id:14,date:"11 apr", home:"Concordia",   away:"vv Lyra",    ht:null,at:L},
+  {id:15,date:"11 apr", home:"Ariston'80",  away:"KMD",        ht:null,at:K},
+  {id:16,date:"11 apr", home:"Maasdijk",    away:"FC Skillz",  ht:M,   at:null},
+  {id:17,date:"11 apr", home:"Quick",       away:"SEP",        ht:Q,   at:null},
+  {id:18,date:"18 apr", home:"KMD",         away:"FC Skillz",  ht:K,   at:null},
+  {id:19,date:"18 apr", home:"Ariston'80",  away:"Quick",      ht:null,at:Q},
+  {id:20,date:"18 apr", home:"vv Lyra",     away:"Wilhelmus",  ht:L,   at:null},
+  {id:21,date:"9 mei",  home:"Gravenzande", away:"Maasdijk",   ht:null,at:M},
+  {id:22,date:"9 mei",  home:"vv Lyra",     away:"FC Skillz",  ht:L,   at:null},
+  {id:23,date:"9 mei",  home:"Quick",       away:"Die Haghe",  ht:Q,   at:null},
+  {id:24,date:"16 mei", home:"KMD",         away:"Quick",      ht:K,   at:Q},
+  {id:25,date:"16 mei", home:"Maasdijk",    away:"vv Lyra",    ht:M,   at:L},
+];
+const DATE_ORDER=["7 mrt","14 mrt","21 mrt","28 mrt","31 mrt","11 apr","18 apr","9 mei","16 mei"];
+
+// ── Preset data ───────────────────────────────────────────────────────────────
+const EXPECTED_OUTCOMES={1:"A",2:"A",3:"A",4:"H",5:"H",6:"H",7:"D",8:"A",9:"A",10:"H",11:"H",12:"A",13:"H",14:"A",15:"A",16:"H",17:"H",18:"H",19:"A",20:"H",21:"A",22:"H",23:"H",24:"D",25:"A"};
+const EXPECTED_SCORES={1:{h:0,a:2},2:{h:0,a:2},3:{h:0,a:2},4:{h:3,a:0},5:{h:3,a:0},6:{h:2,a:0},7:{h:1,a:1},8:{h:0,a:2},9:{h:0,a:2},10:{h:3,a:0},11:{h:2,a:1},12:{h:1,a:2},13:{h:3,a:1},14:{h:0,a:3},15:{h:0,a:2},16:{h:2,a:1},17:{h:3,a:0},18:{h:3,a:1},19:{h:0,a:2},20:{h:4,a:0},21:{h:1,a:2},22:{h:3,a:1},23:{h:3,a:0},24:{h:1,a:1},25:{h:0,a:2}};
+
+function scoreToOutcome(h,a){return h>a?"H":h<a?"A":"D";}
+
+function bestCaseOutcomes(){
+  const o={};
+  for(const m of MATCHES){
+    if(m.ht===L)o[m.id]="H"; else if(m.at===L)o[m.id]="A";
+    else if(m.ht&&m.at)o[m.id]="D"; else if(m.ht)o[m.id]="A"; else if(m.at)o[m.id]="H";
+  }
+  return o;
+}
+function bestCaseScores(){
+  const s={};
+  for(const m of MATCHES){
+    if(m.ht===L)s[m.id]={h:4,a:0};
+    else if(m.at===L)s[m.id]={h:0,a:3};
+    else if(m.ht&&m.at)s[m.id]={h:1,a:1};
+    else if(m.ht)s[m.id]={h:0,a:1};
+    else if(m.at)s[m.id]={h:1,a:0};
+  }
+  return s;
+}
+function worstCaseOutcomes(){
+  const o={};
+  for(const m of MATCHES){
+    if(m.ht===L)o[m.id]="A"; else if(m.at===L)o[m.id]="H";
+    else if(m.ht&&m.at)o[m.id]=INIT_PTS[m.ht]>=INIT_PTS[m.at]?"H":"A";
+    else if(m.ht)o[m.id]="H"; else if(m.at)o[m.id]="A";
+  }
+  return o;
+}
+function worstCaseScores(){
+  const s={};
+  for(const m of MATCHES){
+    if(m.ht===L)s[m.id]={h:0,a:3};
+    else if(m.at===L)s[m.id]={h:3,a:0};
+    else if(m.ht&&m.at){
+      s[m.id]=INIT_PTS[m.ht]>=INIT_PTS[m.at]?{h:3,a:0}:{h:0,a:3};
+    }
+    else if(m.ht)s[m.id]={h:3,a:0};
+    else if(m.at)s[m.id]={h:0,a:3};
+  }
+  return s;
+}
+
+// ── Core logic ────────────────────────────────────────────────────────────────
+function getEffectiveOutcomes(scoreMode, scores, outcomes){
+  if(!scoreMode)return{...outcomes};
+  const eff={};
+  for(const m of MATCHES){
+    const s=scores[m.id];
+    if(s!==undefined&&s.h!==undefined&&s.a!==undefined)
+      eff[m.id]=scoreToOutcome(s.h,s.a);
+  }
+  return eff;
+}
+
+function calcState(effectiveOutcomes, scoreMode, scores){
+  const pts={...INIT_PTS};
+  const gd={...INIT_GD};
+  for(const m of MATCHES){
+    const o=effectiveOutcomes[m.id];
+    if(!o)continue;
+    if(m.ht)pts[m.ht]+=o==="H"?3:o==="D"?1:0;
+    if(m.at)pts[m.at]+=o==="A"?3:o==="D"?1:0;
+    if(scoreMode){
+      const s=scores[m.id];
+      if(s&&s.h!==undefined&&s.a!==undefined){
+        if(m.ht)gd[m.ht]+=(s.h-s.a);
+        if(m.at)gd[m.at]+=(s.a-s.h);
+      }
+    }
+  }
+  const max={};
+  for(const t of TEAMS){
+    max[t]=pts[t];
+    for(const m of MATCHES)if(!effectiveOutcomes[m.id]&&(m.ht===t||m.at===t))max[t]+=3;
+  }
+  return{pts,max,gd};
+}
+
+function ptsUpTo(effectiveOutcomes, upToDate){
+  const p={...INIT_PTS};
+  const upIdx=DATE_ORDER.indexOf(upToDate);
+  for(const date of DATE_ORDER){
+    if(DATE_ORDER.indexOf(date)>upIdx)break;
+    for(const m of MATCHES.filter(m=>m.date===date)){
+      const o=effectiveOutcomes[m.id];
+      if(!o)continue;
+      if(m.ht)p[m.ht]+=o==="H"?3:o==="D"?1:0;
+      if(m.at)p[m.at]+=o==="A"?3:o==="D"?1:0;
+    }
+  }
+  return p;
+}
+
+function findClinchDateForTeam(team, effectiveOutcomes, gd){
+  const runningPts={...INIT_PTS};
+  const runningGd={...gd};
+  for(const date of DATE_ORDER){
+    const dateMatches=MATCHES.filter(m=>m.date===date);
+    if(dateMatches.some(m=>!effectiveOutcomes[m.id]))break;
+    const dateIdx=DATE_ORDER.indexOf(date);
+    for(const m of dateMatches){
+      const o=effectiveOutcomes[m.id];
+      if(m.ht)runningPts[m.ht]+=o==="H"?3:o==="D"?1:0;
+      if(m.at)runningPts[m.at]+=o==="A"?3:o==="D"?1:0;
+    }
+    const rivals=TEAMS.filter(t=>t!==team);
+    const maxRivalPts={};
+    for(const t of rivals){
+      maxRivalPts[t]=runningPts[t];
+      for(const m of MATCHES.filter(m=>DATE_ORDER.indexOf(m.date)>dateIdx))
+        if(m.ht===t||m.at===t)maxRivalPts[t]+=3;
+    }
+    // Clinch: team's pts > every rival's maximum possible pts
+    // (GD only matters when pts are equal, but if rival's MAX pts < team's current pts, done)
+    if(rivals.every(t=>runningPts[team]>maxRivalPts[t]))return date;
+  }
+  return null;
+}
+
+const PRESETS=[
+  {key:"expected",label:"📊 Verwacht",  activeLabel:"Verwacht scenario",  sub:"op basis van vorm & statistieken", bg:"#1d6cc8",light:"#dbeafe",border:"#1d6cc8"},
+  {key:"best",    label:"✨ Best case", activeLabel:"Best case voor Lyra", sub:"Lyra wint alles, concurrenten verliezen", bg:"#15803d",light:"#f0fdf4",border:"#16a34a"},
+  {key:"worst",   label:"💀 Worst case",activeLabel:"Worst case voor Lyra",sub:"Lyra verliest alles, concurrenten winnen", bg:"#6b7280",light:"#f3f4f6",border:"#6b7280"},
+  {key:"reset",   label:"↺ Reset",      activeLabel:"Geen uitslagen",      sub:"stel zelf uitslagen in", bg:"#374151",light:"#f9fafb",border:"#9ca3af"},
+];
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App(){
+  const [outcomes,setOutcomes]=useState({...EXPECTED_OUTCOMES});
+  const [scores,setScores]=useState({...EXPECTED_SCORES});
+  const [scoreMode,setScoreMode]=useState(false);
+  const [activePreset,setActivePreset]=useState("expected");
+
+  const toggleOutcome=(id,val)=>{
+    setOutcomes(prev=>({...prev,[id]:prev[id]===val?undefined:val}));
+    setActivePreset(null);
+  };
+  const setScore=(id,side,val)=>{
+    const num=val===""?undefined:Math.max(0,Math.min(99,parseInt(val)||0));
+    setScores(prev=>({...prev,[id]:{...(prev[id]||{}), [side]:num}}));
+    setActivePreset(null);
+  };
+
+  const applyPreset=(key)=>{
+    if(key==="reset"){setOutcomes({});setScores({});setActivePreset(null);return;}
+    if(key==="expected"){setOutcomes({...EXPECTED_OUTCOMES});setScores({...EXPECTED_SCORES});}
+    else if(key==="best"){setOutcomes(bestCaseOutcomes());setScores(bestCaseScores());}
+    else if(key==="worst"){setOutcomes(worstCaseOutcomes());setScores(worstCaseScores());}
+    setActivePreset(key);
+  };
+
+  const effectiveOutcomes=useMemo(()=>getEffectiveOutcomes(scoreMode,scores,outcomes),[scoreMode,scores,outcomes]);
+  const {pts,max,gd}=useMemo(()=>calcState(effectiveOutcomes,scoreMode,scores),[effectiveOutcomes,scoreMode,scores]);
+
+  const clinchDate=useMemo(()=>findClinchDateForTeam(L,effectiveOutcomes,gd),[effectiveOutcomes,gd]);
+  const clinchIdx=clinchDate?DATE_ORDER.indexOf(clinchDate):-1;
+
+  const sorted=useMemo(()=>[...TEAMS].sort((a,b)=>pts[b]-pts[a]||(scoreMode?gd[b]-gd[a]:INIT_GD[b]-INIT_GD[a])),[pts,gd,scoreMode]);
+  const lyraOut=useMemo(()=>TEAMS.some(t=>t!==L&&pts[t]>max[L]),[pts,max]);
+
+  const winner=useMemo(()=>{
+    if(clinchDate)return L;
+    if(!lyraOut)return null;
+    for(const t of [K,Q,M])if(findClinchDateForTeam(t,effectiveOutcomes,gd))return t;
+    return [...[K,Q,M]].sort((a,b)=>pts[b]-pts[a]||(scoreMode?gd[b]-gd[a]:INIT_GD[b]-INIT_GD[a]))[0];
+  },[clinchDate,lyraOut,effectiveOutcomes,gd,pts,scoreMode]);
+
+  const winnerClinchDate=useMemo(()=>{
+    if(!winner)return null;
+    if(winner===L)return clinchDate;
+    return findClinchDateForTeam(winner,effectiveOutcomes,gd);
+  },[winner,clinchDate,effectiveOutcomes,gd]);
+
+  const ptsAtClinch=useMemo(()=>winnerClinchDate?ptsUpTo(effectiveOutcomes,winnerClinchDate):null,[winnerClinchDate,effectiveOutcomes]);
+
+  const done=useMemo(()=>Object.keys(effectiveOutcomes).length,[effectiveOutcomes]);
+  const total=MATCHES.length;
+  const grouped={};
+  for(const d of DATE_ORDER)grouped[d]=MATCHES.filter(m=>m.date===d);
+
+  const cp=PRESETS.find(p=>p.key===activePreset)||{activeLabel:"Aangepast scenario",sub:"jouw eigen voorspelling",border:"#9ca3af",light:"#f9fafb"};
+  const statusColor=clinchDate?"#15803d":lyraOut?"#4b6a8a":"#d97706";
+  const statusBg=clinchDate?"#f0fdf4":lyraOut?"#f0f4f8":"#fffbeb";
+  const statusBorder=clinchDate?"#86efac":lyraOut?"#b8cfe0":"#fcd34d";
+
+  return(
+    <div style={{background:"#f5f5f5",minHeight:"100vh",padding:"16px 12px 48px"}}>
+
+      {/* Top banner */}
+      <div style={{background:"#E2001A",borderRadius:14,padding:"16px 16px 14px",maxWidth:600,margin:"0 auto 14px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",right:-30,top:-30,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.08)"}}/>
+        <div style={{position:"absolute",right:30,bottom:-40,width:90,height:90,borderRadius:"50%",background:"rgba(255,255,255,0.06)"}}/>
+        <div style={{position:"relative"}}>
+          <div style={{fontSize:10,letterSpacing:"0.16em",color:"rgba(255,255,255,0.7)",fontFamily:"'Space Grotesk',sans-serif",fontWeight:600,marginBottom:4}}>
+            COMPETITIE 3E KLASSE-2 — TITELRACE 2025/26
+          </div>
+          <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+            <h1 style={{fontSize:26,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.1,color:"#ffffff"}}>
+              Wordt Lyra VR1<br/>kampioen?
+            </h1>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:"0.1em",fontFamily:"'Space Grotesk',sans-serif"}}>INGESTELD</div>
+              <div style={{fontSize:26,fontWeight:700,color:"#ffffff",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1}}>
+                {done}<span style={{fontSize:13,color:"rgba(255,255,255,0.5)"}}>/{total}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{height:4,background:"rgba(255,255,255,0.2)",borderRadius:2,marginTop:12}}>
+            <div style={{height:"100%",width:`${(done/total)*100}%`,background:"rgba(255,255,255,0.9)",borderRadius:2,transition:"width 0.3s"}}/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:600,margin:"0 auto"}}>
+
+        {/* Presets + score mode toggle */}
+        <div style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+            {PRESETS.map(p=>{
+              const isActive=activePreset===p.key;
+              return(
+                <button key={p.key} className="pbtn" onClick={()=>applyPreset(p.key)} style={{
+                  padding:"8px 12px",background:isActive?p.bg:"#ffffff",color:isActive?"#ffffff":p.bg,
+                  border:`2px solid ${isActive?p.bg:p.bg+"55"}`,borderRadius:8,fontSize:11,
+                  fontWeight:isActive?700:500,fontFamily:"'Space Grotesk',sans-serif",
+                  boxShadow:isActive?`0 2px 10px ${p.bg}40`:"0 1px 3px rgba(0,0,0,0.07)",
+                }}>{p.label}</button>
+              );
+            })}
+          </div>
+
+        </div>
+
+        {/* Active scenario header */}
+        <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderRadius:10,background:cp.light,border:`1.5px solid ${cp.border}33`,marginBottom:10}}>
+          <div style={{width:4,minHeight:38,borderRadius:2,background:cp.border,flexShrink:0}}/>
+          <div>
+            <div style={{fontSize:9,color:cp.border,letterSpacing:"0.12em",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,textTransform:"uppercase"}}>Actief scenario</div>
+            <div style={{fontSize:15,fontWeight:700,color:"#1a1a1a",fontFamily:"'Space Grotesk',sans-serif",marginTop:1}}>{cp.activeLabel}</div>
+            <div style={{fontSize:10,color:"#6b7280",marginTop:1,fontFamily:"'Space Grotesk',sans-serif"}}>{cp.sub}</div>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div style={{padding:"13px 16px",borderRadius:10,border:`1.5px solid ${statusBorder}`,background:statusBg,marginBottom:12,display:"flex",alignItems:"flex-start",gap:10,position:"sticky",top:8,zIndex:10,boxShadow:"0 2px 8px rgba(0,0,0,0.08)"}}>
+          <span style={{fontSize:22,flexShrink:0,marginTop:1}}>{clinchDate?"🏆":lyraOut?"😔":"⏳"}</span>
+          <div>
+            <div style={{fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,fontSize:14,color:statusColor,lineHeight:1.3}}>
+              {clinchDate
+                ?`Lyra wordt KAMPIOEN op ${clinchDate}!`
+                :lyraOut
+                ?`${FULL[winner]||"?"} wordt kampioen...`
+                :done===0
+                ?"Stel uitslagen in om scenario's te verkennen"
+                :`Titelrace open — Lyra ${pts[L]}pt · KMD max ${max[K]}pt · Quick max ${max[Q]}pt · Maasdijk max ${max[M]}pt`}
+            </div>
+            {winnerClinchDate&&ptsAtClinch&&(
+              <div style={{fontSize:11,color:clinchDate?"#16a34a":"#4b6a8a",marginTop:3,lineHeight:1.5}}>
+                {TEAMS.map(t=>`${SHORT[t]} ${ptsAtClinch[t]}pt`).join(" · ")}
+              </div>
+            )}
+            {!clinchDate&&!lyraOut&&done>0&&(
+              <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>Gelijke punten beslist op doelsaldo</div>
+            )}
+          </div>
+        </div>
+
+        {/* Standings */}
+        <div style={{background:"#ffffff",border:"1.5px solid #e5e7eb",borderRadius:12,overflow:"hidden",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+          <div style={{padding:"8px 14px",borderBottom:"1px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fafafa"}}>
+            <span style={{fontSize:9,letterSpacing:"0.12em",color:"#E2001A",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700}}>KLASSEMENT</span>
+            <span style={{fontSize:9,color:"#9ca3af",letterSpacing:"0.04em",fontFamily:"'Space Grotesk',sans-serif"}}>
+              NU · SCENARIO{winnerClinchDate&&<span style={{color:"#15803d"}}> · op {winnerClinchDate}</span>}{scoreMode&&<span style={{color:"#E2001A"}}> · DS</span>}
+            </span>
+          </div>
+          {sorted.map((t,i)=>{
+            const gained=pts[t]-INIT_PTS[t];
+            const gdVal=gd[t];
+            const isWinner=t===winner&&winnerClinchDate;
+            return(
+              <div key={t} style={{
+                display:"flex",alignItems:"center",padding:"10px 14px",
+                borderBottom:i<3?"1px solid #f3f4f6":"none",
+                background:t===L?COL_LIGHT[L]:"transparent",
+                borderLeft:t===L?`4px solid ${COL[L]}`:"4px solid transparent",
+              }}>
+                <span style={{width:18,fontSize:11,color:"#9ca3af",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700}}>{i+1}</span>
+                <div style={{flex:1,display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:COL[t],flexShrink:0}}/>
+                  <span style={{fontSize:12,fontFamily:"'Space Grotesk',sans-serif",fontWeight:t===L?700:500,color:t===L?COL[t]:"#374151",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    {FULL[t]}
+                  </span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                  {/* Current pts (grey) */}
+                  <span style={{fontSize:13,color:"#d1d5db",width:24,textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:500}}>{INIT_PTS[t]}</span>
+                  {/* Scenario pts */}
+                  <div style={{display:"flex",alignItems:"baseline",gap:2,width:46,justifyContent:"flex-end"}}>
+                    <span style={{fontSize:21,fontWeight:700,color:COL[t],fontFamily:"'Space Grotesk',sans-serif",lineHeight:1}}>{pts[t]}</span>
+                    {gained>0&&<span style={{fontSize:9,color:"#16a34a",fontWeight:700}}>+{gained}</span>}
+                  </div>
+                  {/* At-clinch pts */}
+                  {ptsAtClinch&&(
+                    <span style={{fontSize:13,fontWeight:600,color:isWinner?"#15803d":"#9ca3af",width:26,textAlign:"right",fontFamily:"'DM Mono',monospace",borderLeft:"1px solid #f3f4f6",paddingLeft:8}}>
+                      {ptsAtClinch[t]}
+                    </span>
+                  )}
+                  {/* Goal difference (score mode only) */}
+                  {scoreMode&&(
+                    <span style={{fontSize:12,width:34,textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:700,
+                      color:gdVal>0?"#16a34a":gdVal<0?"#ef4444":"#9ca3af",borderLeft:"1px solid #f3f4f6",paddingLeft:8}}>
+                      {gdVal>0?`+${gdVal}`:gdVal}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+
+        {/* Score mode toggle */}
+        <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginBottom:8,marginTop:28}}>
+          {/* Resultaat label */}
+          <div style={{textAlign:"right",opacity:scoreMode?0.4:1,transition:"opacity 0.2s"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#374151",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.2}}>Resultaat</div>
+            <div style={{fontSize:9,color:"#9ca3af",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em"}}>W/G/V</div>
+          </div>
+          {/* Toggle */}
+          <div className="toggle-track" onClick={()=>{
+            setScoreMode(prev=>{
+              const next=!prev;
+              if(next){
+                // Resultaat → Score: T=1-0, G=0-0, V=0-1
+                setScores(s=>{
+                  const updated={...s};
+                  for(const m of MATCHES){
+                    const o=outcomes[m.id];
+                    if(o==="H"&&!updated[m.id])updated[m.id]={h:1,a:0};
+                    else if(o==="D"&&!updated[m.id])updated[m.id]={h:0,a:0};
+                    else if(o==="A"&&!updated[m.id])updated[m.id]={h:0,a:1};
+                  }
+                  return updated;
+                });
+              } else {
+                // Score → Resultaat: derive outcome from score
+                setOutcomes(o=>{
+                  const updated={...o};
+                  for(const m of MATCHES){
+                    const s=scores[m.id];
+                    if(s&&s.h!==undefined&&s.a!==undefined)
+                      updated[m.id]=scoreToOutcome(s.h,s.a);
+                  }
+                  return updated;
+                });
+              }
+              return next;
+            });
+          }} style={{
+            width:44,height:24,borderRadius:12,flexShrink:0,
+            background:scoreMode?"#E2001A":"#d1d5db",
+            position:"relative",transition:"background 0.2s",
+          }}>
+            <div style={{
+              position:"absolute",top:3,left:scoreMode?20:3,width:18,height:18,
+              borderRadius:"50%",background:"#ffffff",
+              boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
+              transition:"left 0.2s",
+            }}/>
+          </div>
+          {/* Score label */}
+          <div style={{textAlign:"left",opacity:scoreMode?1:0.4,transition:"opacity 0.2s"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#374151",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.2}}>Score</div>
+            <div style={{fontSize:9,color:"#9ca3af",fontFamily:"'DM Mono',monospace",letterSpacing:"0.04em"}}>1-0</div>
+          </div>
+        </div>
+
+        {/* Matches */}
+        <div style={{background:"#ffffff",border:"1.5px solid #e5e7eb",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+          <div style={{padding:"8px 14px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:9,letterSpacing:"0.12em",color:"#E2001A",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700}}>WEDSTRIJDEN</span>
+            <span style={{fontSize:9,color:"#9ca3af",fontFamily:"'Space Grotesk',sans-serif"}}>
+              {scoreMode?"uitslag invullen":"T = Thuis · G = Gelijk · U = Uit"}
+            </span>
+          </div>
+
+          {DATE_ORDER.filter(d=>grouped[d]?.length).map((date,di)=>{
+            const isClinch=date===clinchDate;
+            const isAfter=clinchDate&&DATE_ORDER.indexOf(date)>clinchIdx;
+            return(
+              <div key={date}>
+                <div style={{
+                  padding:"6px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:isClinch?"#f0fdf4":isAfter?"#fafafa":"#f9fafb",
+                  borderTop:di>0?"1px solid #f3f4f6":"none",
+                  borderBottom:"1px solid #f3f4f6",
+                }}>
+                  <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",fontFamily:"'Space Grotesk',sans-serif",color:isClinch?"#15803d":isAfter?"#d1d5db":"#9ca3af"}}>
+                    {date.toUpperCase()}
+                  </span>
+                  {isClinch&&<span style={{fontSize:9,color:"#15803d",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,background:"#bbf7d0",padding:"2px 8px",borderRadius:4}}>🏆 TITELWEDSTRIJD</span>}
+                  {isAfter&&<span style={{fontSize:9,color:"#d1d5db",fontFamily:"'Space Grotesk',sans-serif"}}>niet meer bepalend</span>}
+                </div>
+
+                {grouped[date].map((m,mi)=>{
+                  const isDirect=m.ht&&m.at;
+                  const o=effectiveOutcomes[m.id];
+                  const hc=m.ht?COL[m.ht]:"#d1d5db";
+                  const ac=m.at?COL[m.at]:"#d1d5db";
+                  const sc=scores[m.id]||{};
+
+                  return(
+                    <div key={m.id} className="mrow" style={{
+                      display:"flex",alignItems:"center",padding:"9px 14px",gap:6,
+                      borderBottom:mi<grouped[date].length-1?"1px solid #f9fafb":"none",
+                      background:isDirect&&!isAfter?"#fffbf0":"#ffffff",
+                      opacity:isAfter?0.55:1,
+                    }}>
+                      <span style={{fontSize:9,width:14,flexShrink:0,color:isDirect&&!isAfter?"#f59e0b":"transparent",textAlign:"center"}}>⚡</span>
+
+                      {/* Home team */}
+                      <span style={{flex:1,textAlign:"right",color:m.ht?hc:"#d1d5db",fontWeight:m.ht?600:400,fontSize:11,fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.3}}>
+                        {m.home}
+                      </span>
+
+                      {/* Input area */}
+                      {scoreMode?(
+                        <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                          <input type="number" className={`score-input${sc.h!==undefined?" filled":""}`}
+                            value={sc.h===undefined?"":sc.h}
+                            onChange={e=>setScore(m.id,"h",e.target.value)}
+                            style={{borderColor:sc.h!==undefined?hc:"#e5e7eb",color:sc.h!==undefined?hc:"#9ca3af"}}
+                          />
+                          <span style={{fontSize:12,color:"#d1d5db",fontWeight:700,fontFamily:"'DM Mono',monospace"}}>-</span>
+                          <input type="number" className={`score-input${sc.a!==undefined?" filled":""}`}
+                            value={sc.a===undefined?"":sc.a}
+                            onChange={e=>setScore(m.id,"a",e.target.value)}
+                            style={{borderColor:sc.a!==undefined?ac:"#e5e7eb",color:sc.a!==undefined?ac:"#9ca3af"}}
+                          />
+                        </div>
+                      ):(
+                        <div style={{display:"flex",gap:4,flexShrink:0}}>
+                          {[["H","T",hc],["D","G","#9ca3af"],["A","U",ac]].map(([val,label,bc])=>{
+                            const active=o===val;
+                            return(
+                              <button key={val} className="obtn" onClick={()=>toggleOutcome(m.id,val)} style={{
+                                width:34,height:30,border:`1.5px solid ${active?bc:"#e5e7eb"}`,
+                                borderRadius:6,background:active?bc:"#ffffff",
+                                color:active?"#ffffff":"#9ca3af",
+                                fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",
+                                boxShadow:active?`0 1px 4px ${bc}55`:"none",
+                                opacity:isAfter&&!active?0.35:1,
+                              }}>{label}</button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Away team */}
+                      <span style={{flex:1,color:m.at?ac:"#d1d5db",fontWeight:m.at?600:400,fontSize:11,fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.3}}>
+                        {m.away}
+                      </span>
+
+                      {/* Filled indicator */}
+                      <div style={{width:6,height:6,borderRadius:"50%",flexShrink:0,
+                        background:o?"#16a34a":scoreMode&&(sc.h!==undefined||sc.a!==undefined)?"#fcd34d":"#e5e7eb"}}/>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{fontSize:9,color:"#d1d5db",textAlign:"center",marginTop:12,letterSpacing:"0.04em",lineHeight:1.8,fontFamily:"'Space Grotesk',sans-serif"}}>
+          ⚡ RECHTSTREEKSE CONFRONTATIE<br/>
+          BIJ GELIJKE PUNTEN BESLIST DOELSALDO
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
