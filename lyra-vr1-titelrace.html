@@ -323,43 +323,28 @@ function computeClinchCondition(clinchDate, effectiveOutcomes) {
   if (lossC !== null && lossC.length === 0) return "Ongeacht de uitslag 🎉";
 
   const hasRivals = rivalMs.length > 0;
-  const MAX_CONDITIONS = 1;
-
   const fmtCond = (c) => {
     if (!c || c.length === 0) return hasRivals ? ", ongeacht andere uitslagen" : "";
     return `, indien ${c.join(" en ")}`;
   };
 
-  // Build candidates from most to least lenient, only if <= MAX_CONDITIONS
-  const candidates = [];
+  // Rule: always base on win. Merge draw in if same conditions as win.
+  if (winC === null) return null;
 
-  if (drawC !== null && winC !== null && lossC !== null &&
-      lossC.join("|") === drawC.join("|") && drawC.join("|") === winC.join("|") &&
-      lossC.length <= MAX_CONDITIONS)
-    candidates.push({ label: "Ongeacht de uitslag", cond: lossC });
+  const winKey = winC.join("|");
+  const drawKey = drawC ? drawC.join("|") : null;
+  const lossKey = lossC ? lossC.join("|") : null;
 
-  if (lossC !== null && drawC !== null && lossC.join("|") === drawC.join("|") && lossC.length <= MAX_CONDITIONS)
-    candidates.push({ label: "Bij verlies of gelijkspel", cond: lossC });
+  // All three same → ongeacht
+  if (lossKey !== null && lossKey === winKey && drawKey === winKey && winC.length === 0)
+    return "Ongeacht de uitslag 🎉";
 
-  if (lossC !== null && lossC.length <= MAX_CONDITIONS)
-    candidates.push({ label: "Bij verlies", cond: lossC });
+  // Win + draw same conditions
+  if (drawKey !== null && drawKey === winKey)
+    return `Bij winst of gelijkspel${fmtCond(winC)}`;
 
-  if (drawC !== null && winC !== null && drawC.join("|") === winC.join("|") && drawC.length <= MAX_CONDITIONS)
-    candidates.push({ label: "Bij winst of gelijkspel", cond: drawC });
-
-  if (drawC !== null && drawC.length <= MAX_CONDITIONS)
-    candidates.push({ label: "Bij gelijkspel", cond: drawC });
-
-  if (winC !== null && winC.length <= MAX_CONDITIONS)
-    candidates.push({ label: "Bij winst", cond: winC });
-
-  // Pick most lenient (fewest conditions wins ties)
-  const best = candidates[0];
-  if (best) return `${best.label}${fmtCond(best.cond)}`;
-
-  // Fallback: win with full conditions
-  if (winC !== null) return `Bij winst${fmtCond(winC)}`;
-  return null;
+  // Win only
+  return `Bij winst${fmtCond(winC)}`;
 }
 
 
