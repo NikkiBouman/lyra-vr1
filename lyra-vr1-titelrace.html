@@ -40,7 +40,7 @@ const COL={[L]:"#E2001A",[K]:"#1d6cc8",[Q]:"#d97706",[M]:"#7c3aed"};
 const COL_LIGHT={[L]:"#fdecea",[K]:"#dbeafe",[Q]:"#fef3c7",[M]:"#ede9fe"};
 
 const MATCHES=[
-  {id:1, date:"7 mrt",  home:"SEP",         away:"vv Lyra",    ht:null,at:L, played:{h:5,a:2}},
+  {id:1, date:"7 mrt",  home:"SEP",         away:"vv Lyra",    ht:null,at:L, played:{h:2,a:5}},
   {id:2, date:"7 mrt",  home:"Gravenzande", away:"KMD",        ht:null,at:K, played:{h:3,a:1}},
   {id:3, date:"7 mrt",  home:"Die Haghe",   away:"Maasdijk",   ht:null,at:M, played:{h:1,a:3}},
   {id:4, date:"14 mrt", home:"vv Lyra",     away:"Ariston'80", ht:L,   at:null},
@@ -68,9 +68,22 @@ const MATCHES=[
 ];
 const DATE_ORDER=["7 mrt","14 mrt","21 mrt","28 mrt","31 mrt","11 apr","18 apr","9 mei","16 mei"];
 
+// Points including all locked/played results
+const CURRENT_PTS=(()=>{
+  const p={...INIT_PTS};
+  for(const m of MATCHES){
+    if(!m.played)continue;
+    const h=m.played.h,a=m.played.a;
+    const o=h>a?"H":h<a?"A":"D";
+    if(m.ht)p[m.ht]+=o==="H"?3:o==="D"?1:0;
+    if(m.at)p[m.at]+=o==="A"?3:o==="D"?1:0;
+  }
+  return p;
+})();
+
 // ── Preset data ───────────────────────────────────────────────────────────────
-const EXPECTED_OUTCOMES={1:"H",2:"H",3:"A",4:"H",5:"H",6:"H",7:"D",8:"A",9:"A",10:"H",11:"H",12:"A",13:"H",14:"A",15:"A",16:"H",17:"H",18:"H",19:"A",20:"H",21:"A",22:"H",23:"H",24:"D",25:"A"};
-const EXPECTED_SCORES={1:{h:5,a:2},2:{h:3,a:1},3:{h:1,a:3},4:{h:3,a:0},5:{h:3,a:0},6:{h:2,a:0},7:{h:1,a:1},8:{h:0,a:2},9:{h:0,a:2},10:{h:3,a:0},11:{h:2,a:1},12:{h:1,a:2},13:{h:3,a:1},14:{h:0,a:3},15:{h:0,a:2},16:{h:2,a:1},17:{h:3,a:0},18:{h:3,a:1},19:{h:0,a:2},20:{h:4,a:0},21:{h:1,a:2},22:{h:3,a:1},23:{h:3,a:0},24:{h:1,a:1},25:{h:0,a:2}};
+const EXPECTED_OUTCOMES={1:"A",2:"H",3:"A",4:"H",5:"H",6:"H",7:"D",8:"A",9:"A",10:"H",11:"H",12:"A",13:"H",14:"A",15:"A",16:"H",17:"H",18:"H",19:"A",20:"H",21:"A",22:"H",23:"H",24:"D",25:"A"};
+const EXPECTED_SCORES={1:{h:2,a:5},2:{h:3,a:1},3:{h:1,a:3},4:{h:3,a:0},5:{h:3,a:0},6:{h:2,a:0},7:{h:1,a:1},8:{h:0,a:2},9:{h:0,a:2},10:{h:3,a:0},11:{h:2,a:1},12:{h:1,a:2},13:{h:3,a:1},14:{h:0,a:3},15:{h:0,a:2},16:{h:2,a:1},17:{h:3,a:0},18:{h:3,a:1},19:{h:0,a:2},20:{h:4,a:0},21:{h:1,a:2},22:{h:3,a:1},23:{h:3,a:0},24:{h:1,a:1},25:{h:0,a:2}};
 
 function scoreToOutcome(h,a){return h>a?"H":h<a?"A":"D";}
 
@@ -365,7 +378,7 @@ function App(){
             </span>
           </div>
           {sorted.map((t,i)=>{
-            const gained=pts[t]-INIT_PTS[t];
+            const gained=pts[t]-CURRENT_PTS[t];
             const gdVal=gd[t];
             const isWinner=t===winner&&winnerClinchDate;
             return(
@@ -384,7 +397,7 @@ function App(){
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
                   {/* Current pts (grey) */}
-                  <span style={{fontSize:13,color:"#d1d5db",width:24,textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:500}}>{INIT_PTS[t]}</span>
+                  <span style={{fontSize:13,color:"#d1d5db",width:24,textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:500}}>{CURRENT_PTS[t]}</span>
                   {/* Scenario pts */}
                   <div style={{display:"flex",alignItems:"baseline",gap:2,width:46,justifyContent:"flex-end"}}>
                     <span style={{fontSize:21,fontWeight:700,color:COL[t],fontFamily:"'Space Grotesk',sans-serif",lineHeight:1}}>{pts[t]}</span>
