@@ -40,9 +40,9 @@ const COL={[L]:"#E2001A",[K]:"#1d6cc8",[Q]:"#d97706",[M]:"#7c3aed"};
 const COL_LIGHT={[L]:"#fdecea",[K]:"#dbeafe",[Q]:"#fef3c7",[M]:"#ede9fe"};
 
 const MATCHES=[
-  {id:1, date:"7 mrt",  home:"SEP",         away:"vv Lyra",    ht:null,at:L},
-  {id:2, date:"7 mrt",  home:"Gravenzande", away:"KMD",        ht:null,at:K},
-  {id:3, date:"7 mrt",  home:"Die Haghe",   away:"Maasdijk",   ht:null,at:M},
+  {id:1, date:"7 mrt",  home:"SEP",         away:"vv Lyra",    ht:null,at:L, played:{h:5,a:2}},
+  {id:2, date:"7 mrt",  home:"Gravenzande", away:"KMD",        ht:null,at:K, played:{h:3,a:1}},
+  {id:3, date:"7 mrt",  home:"Die Haghe",   away:"Maasdijk",   ht:null,at:M, played:{h:1,a:3}},
   {id:4, date:"14 mrt", home:"vv Lyra",     away:"Ariston'80", ht:L,   at:null},
   {id:5, date:"14 mrt", home:"KMD",         away:"Wilhelmus",  ht:K,   at:null},
   {id:6, date:"14 mrt", home:"Maasdijk",    away:"Concordia",  ht:M,   at:null},
@@ -69,8 +69,8 @@ const MATCHES=[
 const DATE_ORDER=["7 mrt","14 mrt","21 mrt","28 mrt","31 mrt","11 apr","18 apr","9 mei","16 mei"];
 
 // ── Preset data ───────────────────────────────────────────────────────────────
-const EXPECTED_OUTCOMES={1:"A",2:"A",3:"A",4:"H",5:"H",6:"H",7:"D",8:"A",9:"A",10:"H",11:"H",12:"A",13:"H",14:"A",15:"A",16:"H",17:"H",18:"H",19:"A",20:"H",21:"A",22:"H",23:"H",24:"D",25:"A"};
-const EXPECTED_SCORES={1:{h:0,a:2},2:{h:0,a:2},3:{h:0,a:2},4:{h:3,a:0},5:{h:3,a:0},6:{h:2,a:0},7:{h:1,a:1},8:{h:0,a:2},9:{h:0,a:2},10:{h:3,a:0},11:{h:2,a:1},12:{h:1,a:2},13:{h:3,a:1},14:{h:0,a:3},15:{h:0,a:2},16:{h:2,a:1},17:{h:3,a:0},18:{h:3,a:1},19:{h:0,a:2},20:{h:4,a:0},21:{h:1,a:2},22:{h:3,a:1},23:{h:3,a:0},24:{h:1,a:1},25:{h:0,a:2}};
+const EXPECTED_OUTCOMES={1:"H",2:"H",3:"A",4:"H",5:"H",6:"H",7:"D",8:"A",9:"A",10:"H",11:"H",12:"A",13:"H",14:"A",15:"A",16:"H",17:"H",18:"H",19:"A",20:"H",21:"A",22:"H",23:"H",24:"D",25:"A"};
+const EXPECTED_SCORES={1:{h:5,a:2},2:{h:3,a:1},3:{h:1,a:3},4:{h:3,a:0},5:{h:3,a:0},6:{h:2,a:0},7:{h:1,a:1},8:{h:0,a:2},9:{h:0,a:2},10:{h:3,a:0},11:{h:2,a:1},12:{h:1,a:2},13:{h:3,a:1},14:{h:0,a:3},15:{h:0,a:2},16:{h:2,a:1},17:{h:3,a:0},18:{h:3,a:1},19:{h:0,a:2},20:{h:4,a:0},21:{h:1,a:2},22:{h:3,a:1},23:{h:3,a:0},24:{h:1,a:1},25:{h:0,a:2}};
 
 function scoreToOutcome(h,a){return h>a?"H":h<a?"A":"D";}
 
@@ -118,12 +118,17 @@ function worstCaseScores(){
 
 // ── Core logic ────────────────────────────────────────────────────────────────
 function getEffectiveOutcomes(scoreMode, scores, outcomes){
-  if(!scoreMode)return{...outcomes};
-  const eff={};
+  const eff=scoreMode?{}:{...outcomes};
+  if(scoreMode){
+    for(const m of MATCHES){
+      const s=scores[m.id];
+      if(s!==undefined&&s.h!==undefined&&s.a!==undefined)
+        eff[m.id]=scoreToOutcome(s.h,s.a);
+    }
+  }
+  // Always lock played results
   for(const m of MATCHES){
-    const s=scores[m.id];
-    if(s!==undefined&&s.h!==undefined&&s.a!==undefined)
-      eff[m.id]=scoreToOutcome(s.h,s.a);
+    if(m.played)eff[m.id]=scoreToOutcome(m.played.h,m.played.a);
   }
   return eff;
 }
@@ -136,12 +141,10 @@ function calcState(effectiveOutcomes, scoreMode, scores){
     if(!o)continue;
     if(m.ht)pts[m.ht]+=o==="H"?3:o==="D"?1:0;
     if(m.at)pts[m.at]+=o==="A"?3:o==="D"?1:0;
-    if(scoreMode){
-      const s=scores[m.id];
-      if(s&&s.h!==undefined&&s.a!==undefined){
-        if(m.ht)gd[m.ht]+=(s.h-s.a);
-        if(m.at)gd[m.at]+=(s.a-s.h);
-      }
+    const s=m.played||(scoreMode?scores[m.id]:null);
+    if(s&&s.h!==undefined&&s.a!==undefined){
+      if(m.ht)gd[m.ht]+=(s.h-s.a);
+      if(m.at)gd[m.at]+=(s.a-s.h);
     }
   }
   const max={};
@@ -169,25 +172,37 @@ function ptsUpTo(effectiveOutcomes, upToDate){
 
 function findClinchDateForTeam(team, effectiveOutcomes, gd){
   const runningPts={...INIT_PTS};
-  const runningGd={...gd};
   for(const date of DATE_ORDER){
-    const dateMatches=MATCHES.filter(m=>m.date===date);
-    if(dateMatches.some(m=>!effectiveOutcomes[m.id]))break;
     const dateIdx=DATE_ORDER.indexOf(date);
+    const dateMatches=MATCHES.filter(m=>m.date===date);
+    // Apply all filled matches on this date (skip unfilled ones)
+    let anyFilled=false;
     for(const m of dateMatches){
       const o=effectiveOutcomes[m.id];
+      if(!o)continue;
+      anyFilled=true;
       if(m.ht)runningPts[m.ht]+=o==="H"?3:o==="D"?1:0;
       if(m.at)runningPts[m.at]+=o==="A"?3:o==="D"?1:0;
     }
+    if(!anyFilled)continue;
+    // Rivals max = current running pts + 3 for every match on a FUTURE date (filled or not)
+    // plus 3 for every UNFILLED match on the CURRENT date (not yet decided)
     const rivals=TEAMS.filter(t=>t!==team);
     const maxRivalPts={};
     for(const t of rivals){
       maxRivalPts[t]=runningPts[t];
-      for(const m of MATCHES.filter(m=>DATE_ORDER.indexOf(m.date)>dateIdx))
-        if(m.ht===t||m.at===t)maxRivalPts[t]+=3;
+      for(const m of MATCHES){
+        const mIdx=DATE_ORDER.indexOf(m.date);
+        const o=effectiveOutcomes[m.id];
+        if(mIdx>dateIdx){
+          // Future date: always add max 3 pts regardless of whether filled
+          if(m.ht===t||m.at===t)maxRivalPts[t]+=3;
+        } else if(mIdx===dateIdx&&!o){
+          // Same date but unfilled: rival could still win it
+          if(m.ht===t||m.at===t)maxRivalPts[t]+=3;
+        }
+      }
     }
-    // Clinch: team's pts > every rival's maximum possible pts
-    // (GD only matters when pts are equal, but if rival's MAX pts < team's current pts, done)
     if(rivals.every(t=>runningPts[team]>maxRivalPts[t]))return date;
   }
   return null;
@@ -500,7 +515,15 @@ function App(){
                       </span>
 
                       {/* Input area */}
-                      {scoreMode?(
+                      {m.played?(
+                        // Locked: show score as plain text
+                        <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,width:82,justifyContent:"center"}}>
+                          <span style={{fontSize:15,fontWeight:700,fontFamily:"'DM Mono',monospace",color:m.ht?hc:"#9ca3af"}}>{m.played.h}</span>
+                          <span style={{fontSize:12,color:"#d1d5db",fontWeight:700,fontFamily:"'DM Mono',monospace"}}>-</span>
+                          <span style={{fontSize:15,fontWeight:700,fontFamily:"'DM Mono',monospace",color:m.at?ac:"#9ca3af"}}>{m.played.a}</span>
+                          <span style={{fontSize:9,color:"#d1d5db",marginLeft:2}}>🔒</span>
+                        </div>
+                      ):scoreMode?(
                         <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                           <input type="number" className={`score-input${sc.h!==undefined?" filled":""}`}
                             value={sc.h===undefined?"":sc.h}
@@ -539,7 +562,7 @@ function App(){
 
                       {/* Filled indicator */}
                       <div style={{width:6,height:6,borderRadius:"50%",flexShrink:0,
-                        background:o?"#16a34a":scoreMode&&(sc.h!==undefined||sc.a!==undefined)?"#fcd34d":"#e5e7eb"}}/>
+                        background:m.played?"#16a34a":o?"#16a34a":scoreMode&&(sc.h!==undefined||sc.a!==undefined)?"#fcd34d":"#e5e7eb"}}/>
                     </div>
                   );
                 })}
