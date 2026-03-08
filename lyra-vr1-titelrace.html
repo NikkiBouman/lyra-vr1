@@ -221,6 +221,148 @@ function findClinchDateForTeam(team, effectiveOutcomes, gd){
   return null;
 }
 
+
+// ── Clinch condition analysis ─────────────────────────────────────────────────
+function computeClinchCondition(clinchDate, effectiveOutcomes) {
+  if (!clinchDate) return null;
+  const dateIdx = DATE_ORDER.indexOf(clinchDate);
+  const dateMatches = MATCHES.filter(m => m.date === clinchDate);
+  const lyraMatch = dateMatches.find(m => m.ht === L || m.at === L) || null;
+
+  // Points accumulated strictly before this date
+  const beforePts = {...INIT_PTS};
+  for (const date of DATE_ORDER) {
+    if (date === clinchDate) break;
+    for (const m of MATCHES.filter(x => x.date === date)) {
+      const o = effectiveOutcomes[m.id];
+      if (!o) continue;
+      if (m.ht) beforePts[m.ht] += o==="H"?3:o==="D"?1:0;
+      if (m.at) beforePts[m.at] += o==="A"?3:o==="D"?1:0;
+    }
+  }
+
+  function gain(team, o, match) {
+    if (match.ht === team) return o==="H"?3:o==="D"?1:0;
+    if (match.at === team) return o==="A"?3:o==="D"?1:0;
+    return 0;
+  }
+
+  function checkClinch(testOutcomes) {
+    const pts = {...beforePts};
+    for (const m of dateMatches) {
+      const o = testOutcomes[m.id];
+      if (!o) continue;
+      for (const t of TEAMS) pts[t] += gain(t, o, m);
+    }
+    return [K,Q,M].every(t => {
+      let mx = pts[t];
+      for (const m of MATCHES)
+        if (DATE_ORDER.indexOf(m.date) > dateIdx && (m.ht===t||m.at===t)) mx += 3;
+      return pts[L] > mx;
+    });
+  }
+
+  const lyraWin  = lyraMatch ? (lyraMatch.ht===L ? 'H' : 'A') : null;
+  const lyraLoss = lyraMatch ? (lyraMatch.ht===L ? 'A' : 'H') : null;
+
+  // Rival matches treated as fully open (ignore scenario fills) — only 🔒 played matches are fixed
+  const rivalMs = dateMatches.filter(m =>
+    m.id !== lyraMatch?.id &&
+    !m.played
+  );
+
+  // Fixed rival outcomes: only truly locked (played) matches
+  const fixedRivalOutcomes = {};
+  for (const m of dateMatches.filter(m => m.id !== lyraMatch?.id && m.played)) {
+    fixedRivalOutcomes[m.id] = scoreToOutcome(m.played.h, m.played.a);
+  }
+
+  function enumRival(i, cur) {
+    if (i === rivalMs.length) return [cur];
+    return ['H','D','A'].flatMap(o => enumRival(i+1, {...cur, [rivalMs[i].id]: o}));
+  }
+  const rivalCombos = enumRival(0, {});
+
+  function analyzeForLyraResult(lyraCode) {
+    const base = {...fixedRivalOutcomes};
+    if (lyraMatch && lyraCode) base[lyraMatch.id] = lyraCode;
+    const working = rivalCombos.filter(rc => checkClinch({...base, ...rc}));
+    if (working.length === 0) return null;
+    if (rivalMs.length === 0 || working.length === rivalCombos.length) return [];
+
+    // Per variable rival match, determine what outcomes are required
+    const conditions = [];
+    for (const t of [K,Q,M]) {
+      const rm = rivalMs.find(m => m.ht===t || m.at===t);
+      if (!rm) continue;
+      const rivalWin  = rm.ht===t ? 'H' : 'A';
+      const rivalLoss = rm.ht===t ? 'A' : 'H';
+      const winWorks  = working.some(rc => rc[rm.id] === rivalWin);
+      const drawWorks = working.some(rc => rc[rm.id] === 'D');
+      const lossWorks = working.some(rc => rc[rm.id] === rivalLoss);
+      if (winWorks && drawWorks && lossWorks) continue; // no condition needed
+      if (!winWorks && drawWorks && lossWorks) conditions.push(`${SHORT[t]} speelt gelijk of verliest`);
+      else if (!winWorks && !drawWorks && lossWorks) conditions.push(`${SHORT[t]} verliest`);
+      else if (winWorks && drawWorks && !lossWorks) conditions.push(`${SHORT[t]} wint of speelt gelijk`);
+      else if (winWorks && !drawWorks && !lossWorks) conditions.push(`${SHORT[t]} wint`);
+      else if (!winWorks && drawWorks && !lossWorks) conditions.push(`${SHORT[t]} speelt gelijk`);
+    }
+    return conditions;
+  }
+
+  const lossC = lyraMatch ? analyzeForLyraResult(lyraLoss) : null;
+  const drawC = lyraMatch ? analyzeForLyraResult('D') : null;
+  const winC  = lyraMatch ? analyzeForLyraResult(lyraWin) : analyzeForLyraResult(null);
+
+  if (!lyraMatch) {
+    if (winC !== null && winC.length === 0) return "Sowieso kampioen, Lyra speelt niet 🎉";
+    if (winC) return `Lyra speelt niet, mits ${winC.join(" en ")}`;
+    return null;
+  }
+
+  if (lossC !== null && lossC.length === 0) return "Ongeacht de uitslag 🎉";
+
+  const hasRivals = rivalMs.length > 0;
+  const MAX_CONDITIONS = 1;
+
+  const fmtCond = (c) => {
+    if (!c || c.length === 0) return hasRivals ? ", ongeacht andere uitslagen" : "";
+    return `, indien ${c.join(" en ")}`;
+  };
+
+  // Build candidates from most to least lenient, only if <= MAX_CONDITIONS
+  const candidates = [];
+
+  if (drawC !== null && winC !== null && lossC !== null &&
+      lossC.join("|") === drawC.join("|") && drawC.join("|") === winC.join("|") &&
+      lossC.length <= MAX_CONDITIONS)
+    candidates.push({ label: "Ongeacht de uitslag", cond: lossC });
+
+  if (lossC !== null && drawC !== null && lossC.join("|") === drawC.join("|") && lossC.length <= MAX_CONDITIONS)
+    candidates.push({ label: "Bij verlies of gelijkspel", cond: lossC });
+
+  if (lossC !== null && lossC.length <= MAX_CONDITIONS)
+    candidates.push({ label: "Bij verlies", cond: lossC });
+
+  if (drawC !== null && winC !== null && drawC.join("|") === winC.join("|") && drawC.length <= MAX_CONDITIONS)
+    candidates.push({ label: "Bij winst of gelijkspel", cond: drawC });
+
+  if (drawC !== null && drawC.length <= MAX_CONDITIONS)
+    candidates.push({ label: "Bij gelijkspel", cond: drawC });
+
+  if (winC !== null && winC.length <= MAX_CONDITIONS)
+    candidates.push({ label: "Bij winst", cond: winC });
+
+  // Pick most lenient (fewest conditions wins ties)
+  const best = candidates[0];
+  if (best) return `${best.label}${fmtCond(best.cond)}`;
+
+  // Fallback: win with full conditions
+  if (winC !== null) return `Bij winst${fmtCond(winC)}`;
+  return null;
+}
+
+
 const PRESETS=[
   {key:"expected",label:"📊 Verwacht",  activeLabel:"Verwacht scenario",  sub:"op basis van vorm & statistieken", bg:"#1d6cc8",light:"#dbeafe",border:"#1d6cc8"},
   {key:"best",    label:"✨ Best case", activeLabel:"Best case voor Lyra", sub:"Lyra wint alles, concurrenten verliezen", bg:"#15803d",light:"#f0fdf4",border:"#16a34a"},
@@ -276,6 +418,14 @@ function App(){
   },[winner,clinchDate,effectiveOutcomes,gd]);
 
   const ptsAtClinch=useMemo(()=>winnerClinchDate?ptsUpTo(effectiveOutcomes,winnerClinchDate):null,[winnerClinchDate,effectiveOutcomes]);
+
+  const lyraClinchCondition=useMemo(()=>computeClinchCondition(clinchDate,effectiveOutcomes),[clinchDate,effectiveOutcomes]);
+
+  // Find Lyra's match on the clinch date (if any)
+  const lyraClinchMatch=useMemo(()=>{
+    if(!clinchDate)return null;
+    return MATCHES.find(m=>m.date===clinchDate&&(m.ht===L||m.at===L))||null;
+  },[clinchDate]);
 
   const done=useMemo(()=>Object.keys(effectiveOutcomes).length,[effectiveOutcomes]);
   const total=MATCHES.length;
@@ -358,8 +508,25 @@ function App(){
                 ?"Stel uitslagen in om scenario's te verkennen"
                 :`Titelrace open — Lyra ${pts[L]}pt · KMD max ${max[K]}pt · Quick max ${max[Q]}pt · Maasdijk max ${max[M]}pt`}
             </div>
-            {winnerClinchDate&&ptsAtClinch&&(
-              <div style={{fontSize:11,color:clinchDate?"#16a34a":"#4b6a8a",marginTop:3,lineHeight:1.5}}>
+            {clinchDate&&lyraClinchMatch&&(
+              <div style={{fontSize:11,color:"#15803d",fontWeight:600,marginTop:3,fontFamily:"'Space Grotesk',sans-serif"}}>
+                {lyraClinchMatch.ht===L
+                  ?`🏠 Thuis tegen ${lyraClinchMatch.away}`
+                  :`✈️ Uit bij ${lyraClinchMatch.home}`}
+              </div>
+            )}
+            {clinchDate&&!lyraClinchMatch&&(
+              <div style={{fontSize:11,color:"#15803d",fontWeight:600,marginTop:3,fontFamily:"'Space Grotesk',sans-serif"}}>
+                Lyra speelt niet op {clinchDate}
+              </div>
+            )}
+            {clinchDate&&lyraClinchCondition&&(
+              <div style={{fontSize:12,color:"#15803d",marginTop:4,fontFamily:"'Space Grotesk',sans-serif",fontWeight:500}}>
+                {lyraClinchCondition}
+              </div>
+            )}
+            {!clinchDate&&winnerClinchDate&&ptsAtClinch&&(
+              <div style={{fontSize:11,color:"#4b6a8a",marginTop:3,lineHeight:1.5}}>
                 {TEAMS.map(t=>`${SHORT[t]} ${ptsAtClinch[t]}pt`).join(" · ")}
               </div>
             )}
